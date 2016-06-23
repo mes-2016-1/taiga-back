@@ -25,6 +25,8 @@ should be contained in a class". Because of that, it
 not uses clasess and uses simple functions.
 """
 
+import json
+
 from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.db import transaction as tx
@@ -202,4 +204,15 @@ def normal_login_func(request):
     return data
 
 
+def remote_user_login(request):
+    if "HTTP_REMOTE_USER_DATA" not in request.META:
+        return None
+
+    remote_user_data = json.loads(request.META['HTTP_REMOTE_USER_DATA'])
+    user = get_user_model().objects.get(email=remote_user_data['email'])
+    data = make_auth_response_data(user)
+    return data
+
+
 register_auth_plugin("normal", normal_login_func)
+register_auth_plugin("remote_user", remote_user_login)

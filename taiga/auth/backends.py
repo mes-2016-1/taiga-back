@@ -35,11 +35,13 @@ fraudulent modifications.
 """
 
 import re
+import json
 
 from django.conf import settings
 from taiga.base.api.authentication import BaseAuthentication
+from django.contrib.auth import get_user_model
 
-from .tokens import get_user_for_token
+from .tokens import get_user_for_token, get_token_for_user
 
 
 class Session(BaseAuthentication):
@@ -85,6 +87,23 @@ class Token(BaseAuthentication):
         max_age_auth_token = getattr(settings, "MAX_AGE_AUTH_TOKEN", None)
         user = get_user_for_token(token, "authentication",
                                   max_age=max_age_auth_token)
+
+        return (user, token)
+
+    def authenticate_header(self, request):
+        return 'Bearer realm="api"'
+
+
+class RemoteUser(BaseAuthentication):
+
+    def authenticate(self, request):
+        if "HTTP_REMOTE_USER_DATA" not in request.META:
+            return None
+
+        model_cls = get_user_model()
+        data = json.loads(request.META['HTTP_REMOTE_USER_DATA'])
+        user = model_cls.objects.get(email=data['email'])
+        token = get_token_for_user(user, "authentication")
 
         return (user, token)
 
